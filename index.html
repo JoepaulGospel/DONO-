@@ -6,50 +6,77 @@
 <title>DONO</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
 <style>
 body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; }
-.glass-panel { background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.glass-panel { background: rgba(20, 20, 20, 0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
 .typing-dot { animation: bounce 1.4s infinite ease-in-out both; }
 .typing-dot:nth-child(1) { animation-delay: -0.32s; }
 .typing-dot:nth-child(2) { animation-delay: -0.16s; }
 @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+/* Markdown Styles */
+.prose p { margin-bottom: 0.5em; }
+.prose strong { color: #fff; font-weight: 600; }
+.prose ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 0.5em; }
 </style>
-<!-- Import Map: The Modern Way -->
 <script type="importmap">
 {
 "imports": {
 "react": "https://esm.sh/react@18.2.0",
-"react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
+"react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+"lucide-react": "https://esm.sh/lucide-react@0.263.1"
 }
 }
 </script>
 </head>
 <body>
 <div id="root" class="h-screen w-screen flex flex-col items-center justify-center text-zinc-500 text-sm">
-<div class="animate-pulse mb-2">Booting DONO Core...</div>
-<!-- Debug Output -->
-<div id="debug" class="font-mono text-xs text-red-500"></div>
+<div class="animate-pulse">Initializing DONO System...</div>
 </div>
 <script type="module">
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-// Error Trap
-window.onerror = function(msg, source, lineno, colno, error) {
-document.getElementById('debug').innerText = `Error: ${msg}`;
-};
+import { Settings, Send, Bot, User, Cpu, Lock, ArrowRight, LogOut, ArrowUp, X } from 'lucide-react';
+const md = window.markdownit();
 // --- CONFIG ---
 const PROJECT_URL = 'https://wcgvbbgfagmotcxcztd.supabase.co';
-const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjZ3ZiYmdmZ2FnbW90Y3hjenRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5Njc2OTgsImV4cCI6MjA4MTU0MzY5OH0.65hYmquYB11_vot1HmChGTukwp0gyNNFXbE2W8Ys84A';
-// --- DATABASE ---
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjZ3ZiYmdmZ2FnbW90Y3hjenRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5Njc2OTgsImV4cCI6MjA4MTU0MzY5OH0.65hYmquYB11_vot1HmChGTukwp0gyNNFXbE2W8Ys84A';
+// --- BRAIN (Google Gemini Integration) ---
+const brain = {
+think: async (history, apiKey) => {
+if (!apiKey) return "Error: Intelligence Core Offline. Please set your API Key in settings.";
+const systemPrompt = "You are DONO, a high-performance financial intelligence unit. You are concise, analytical, and professional. You do not use emojis. You focus on markets, data, and strategy. User name is Gospel.";
+// Format history for Gemini
+const contents = [
+{ role: "user", parts: [{ text: systemPrompt }] },
+...history.map(msg => ({
+role: msg.role === 'user' ? 'user' : 'model',
+parts: [{ text: msg.text }]
+}))
+];
+try {
+const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ contents })
+});
+const data = await response.json();
+if (data.error) return `Error: ${data.error.message}`;
+return data.candidates[0].content.parts[0].text;
+} catch (e) {
+return "Error: Connection to Neural Net failed.";
+}
+}
+};
+// --- MEMORY ---
 const db = {
 fetch: async (key) => {
 try {
 const res = await fetch(`${PROJECT_URL}/rest/v1/app_storage?key=eq.${key}&select=value`, {
-headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` }
+headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
 });
 if (res.ok) {
 const data = await res.json();
@@ -65,7 +92,7 @@ try {
 await fetch(`${PROJECT_URL}/rest/v1/app_storage`, {
 method: 'POST',
 headers: {
-'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json',
+'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json',
 'Prefer': 'resolution=merge-duplicates'
 },
 body: JSON.stringify({ key, value })
@@ -73,20 +100,7 @@ body: JSON.stringify({ key, value })
 } catch(e) {}
 }
 };
-// --- ICONS (SVG) ---
-const Icon = ({ name, className }) => {
-const icons = {
-cpu: React.createElement("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", className }, React.createElement("path", { d: "M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" })),
-lock: React.createElement("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", className }, React.createElement("rect", { x: "3", y: "11", width: "18", height: "11", rx: "2" }), React.createElement("path", { d: "M7 11V7a5 5 0 0 1 10 0v4" })),
-arrowRight: React.createElement("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", className }, React.createElement("path", { d: "M5 12h14" }), React.createElement("path", { d: "m12 5 7 7-7 7" })),
-arrowUp: React.createElement("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", className }, React.createElement("path", { d: "M12 19V5" }), React.createElement("path", { d: "m5 12 7-7 7 7" })),
-logout: React.createElement("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", className }, React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), React.createElement("path", { d: "m16 17 5-5-5-5" }), React.createElement("path", { d: "M21 12H9" })),
-bot: React.createElement("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", className }, React.createElement("rect", { x: "3", y: "11", width: "18", height: "10", rx: "2" }), React.createElement("circle", { cx: "12", cy: "5", r: "2" }), React.createElement("path", { d: "M12 7v4" })),
-user: React.createElement("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", className }, React.createElement("path", { d: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" }), React.createElement("circle", { cx: "12", cy: "7", r: "4" }))
-};
-return icons[name] || null;
-};
-// --- CHART ---
+// --- CHART WIDGET ---
 const Chart = ({ symbol }) => {
 const chartId = `tv_${symbol}_${Math.random().toString(36).substr(2, 9)}`;
 useEffect(() => {
@@ -104,32 +118,33 @@ container.appendChild(script);
 }
 }, [symbol]);
 return React.createElement("div", { className: "w-full rounded-2xl overflow-hidden border border-zinc-800 bg-black mt-3 shadow-2xl" },
-React.createElement("div", { className: "bg-zinc-900/50 px-4 py-2 border-b border-zinc-800 flex justify-between items-center" },
-React.createElement("span", { className: "text-xs font-bold text-zinc-400 tracking-wider" }, "MARKET DATA"),
-React.createElement("span", { className: "text-xs font-bold text-white" }, symbol)
-),
 React.createElement("div", { id: chartId, className: "h-[350px] w-full" })
 );
 };
-// --- MAIN APP ---
 function App() {
 const [isAuth, setIsAuth] = useState(false);
 const [pin, setPin] = useState('');
 const [input, setInput] = useState('');
 const [messages, setMessages] = useState([]);
 const [isTyping, setIsTyping] = useState(false);
+const [settingsOpen, setSettingsOpen] = useState(false);
+const [apiKey, setApiKey] = useState(() => localStorage.getItem('dono_gemini_key') || '');
 const scrollRef = useRef(null);
 useEffect(() => {
 if (isAuth) {
-db.fetch(`dono_chat_v2_${pin}`).then(msgs => {
+db.fetch(`dono_chat_v3_${pin}`).then(msgs => {
 if (msgs && msgs.length > 0) setMessages(msgs);
-else setMessages([{ id: 1, role: 'assistant', text: "Hello. I am DONO. How can I help?", timestamp: new Date().toISOString() }]);
+else setMessages([{ id: 1, role: 'assistant', text: "DONO Online. Systems Nominal.", timestamp: new Date().toISOString() }]);
 });
 }
 }, [isAuth]);
 useEffect(() => {
 if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
 }, [messages, isTyping]);
+const saveApiKey = (key) => {
+setApiKey(key);
+localStorage.setItem('dono_gemini_key', key);
+};
 const handleSend = async () => {
 if (!input.trim()) return;
 const userMsg = { id: Date.now(), role: 'user', text: input, timestamp: new Date().toISOString() };
@@ -137,101 +152,93 @@ const newHistory = [...messages, userMsg];
 setMessages(newHistory);
 setInput('');
 setIsTyping(true);
-db.push(`dono_chat_v2_${pin}`, newHistory);
-setTimeout(() => {
-let responseText = "Noted.";
+// Save context
+db.push(`dono_chat_v3_${pin}`, newHistory);
+// Check for Charts
 let meta = null;
-const clean = userMsg.text.toUpperCase();
-if (clean.includes('BTC') || clean.includes('BITCOIN')) { responseText = "Bitcoin market structure."; meta = { type: 'chart', symbol: 'BTCUSDT' }; }
-else if (clean.includes('ETH')) { responseText = "Ethereum data."; meta = { type: 'chart', symbol: 'ETHUSDT' }; }
-else if (clean.includes('TSLA')) { responseText = "Tesla charts loaded."; meta = { type: 'chart', symbol: 'TSLA' }; }
-else {
-const replies = ["I can help you analyze that.", "Understood.", "Added to context.", "Interesting."];
-responseText = replies[Math.floor(Math.random() * replies.length)];
-}
-const botMsg = { id: Date.now() + 1, role: 'assistant', text: responseText, meta, timestamp: new Date().toISOString() };
+const clean = input.toUpperCase();
+if (clean.includes('BTC')) meta = { type: 'chart', symbol: 'BTCUSDT' };
+else if (clean.includes('ETH')) meta = { type: 'chart', symbol: 'ETHUSDT' };
+else if (clean.includes('SOL')) meta = { type: 'chart', symbol: 'SOLUSDT' };
+else if (clean.includes('TSLA')) meta = { type: 'chart', symbol: 'TSLA' };
+// Call Brain
+const replyText = await brain.think(newHistory.slice(-10), apiKey); // Send last 10 messages for context
+const botMsg = { id: Date.now() + 1, role: 'assistant', text: replyText, meta, timestamp: new Date().toISOString() };
 const finalHistory = [...newHistory, botMsg];
 setMessages(finalHistory);
 setIsTyping(false);
-db.push(`dono_chat_v2_${pin}`, finalHistory);
-}, 1000);
+db.push(`dono_chat_v3_${pin}`, finalHistory);
 };
-if (!isAuth) return React.createElement("div", { className: "flex-1 flex flex-col items-center justify-center p-6 bg-black min-h-screen" },
-React.createElement("div", { className: "mb-8 relative" },
-React.createElement("div", { className: "w-24 h-24 rounded-full bg-gradient-to-tr from-zinc-800 to-black border border-zinc-700 flex items-center justify-center shadow-2xl" },
-React.createElement(Icon, { name: "cpu", className: "w-10 h-10 text-white opacity-80" })
-),
-React.createElement("div", { className: "absolute -bottom-2 -right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg" },
-React.createElement(Icon, { name: "lock", className: "w-4 h-4 text-black" })
-)
-),
-React.createElement("h1", { className: "text-3xl font-medium tracking-tight text-white mb-2" }, "Welcome to DONO"),
-React.createElement("p", { className: "text-zinc-500 text-sm mb-10" }, "Your Personal Intelligence Unit"),
-React.createElement("div", { className: "flex flex-col gap-4 w-full max-w-[280px]" },
-React.createElement("input", { type: "password", value: pin, onChange: e => setPin(e.target.value), maxLength: "4", className: "w-full bg-zinc-900 border border-zinc-800 text-center text-2xl tracking-[0.5em] text-white py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-white/20 transition-all placeholder-zinc-700", placeholder: "••••", autoFocus: true }),
-React.createElement("button", { onClick: () => pin.length === 4 && setIsAuth(true), className: "w-full bg-white text-black font-semibold py-4 rounded-2xl hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2" },
-"Enter System", React.createElement(Icon, { name: "arrowRight", className: "w-4 h-4" })
-)
-)
+if (!isAuth) return (
+<div className="flex-1 flex flex-col items-center justify-center p-6 bg-black min-h-screen">
+<div className="w-24 h-24 rounded-full bg-gradient-to-tr from-zinc-800 to-black border border-zinc-700 flex items-center justify-center shadow-2xl mb-8">
+<Cpu className="w-10 h-10 text-white opacity-80" />
+</div>
+<h1 className="text-3xl font-medium tracking-tight text-white mb-2">DONO Access</h1>
+<div className="flex flex-col gap-4 w-full max-w-[280px]">
+<input type="password" value={pin} onChange={e => setPin(e.target.value)} maxLength="4" className="w-full bg-zinc-900 border border-zinc-800 text-center text-2xl tracking-[0.5em] text-white py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-white/20 transition-all placeholder-zinc-700" placeholder="••••" autoFocus />
+<button onClick={() => pin.length === 4 && setIsAuth(true)} className="w-full bg-white text-black font-semibold py-4 rounded-2xl hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2">
+Enter <ArrowRight className="w-4 h-4" />
+</button>
+</div>
+</div>
 );
-return React.createElement("div", { className: "flex-1 flex flex-col h-full bg-black relative" },
-React.createElement("div", { className: "absolute top-0 left-0 right-0 h-16 glass-panel z-20 flex items-center justify-between px-6" },
-React.createElement("div", { className: "flex items-center gap-3" },
-React.createElement("div", { className: "w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center border border-zinc-800" },
-React.createElement(Icon, { name: "cpu", className: "w-4 h-4 text-white" })
-),
-React.createElement("span", { className: "font-medium text-sm tracking-wide text-zinc-300" }, "DONO")
-),
-React.createElement("div", { className: "flex items-center gap-4" },
-React.createElement("div", { className: "h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" }),
-React.createElement("button", { onClick: () => setIsAuth(false), className: "text-zinc-500 hover:text-white transition-colors" },
-React.createElement(Icon, { name: "logout", className: "w-5 h-5" })
-)
-)
-),
-React.createElement("div", { ref: scrollRef, className: "flex-1 overflow-y-auto pt-24 pb-32 px-4 md:px-0" },
-React.createElement("div", { className: "max-w-3xl mx-auto space-y-8" },
-messages.map((msg, idx) =>
-React.createElement("div", { key: idx, className: `flex gap-4 msg-enter ${msg.role === 'user' ? 'justify-end' : 'justify-start'}` },
-msg.role === 'assistant' && React.createElement("div", { className: "w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex-shrink-0 flex items-center justify-center mt-1" },
-React.createElement(Icon, { name: "bot", className: "w-4 h-4 text-zinc-400" })
-),
-React.createElement("div", { className: `flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}` },
-React.createElement("div", { className: `px-5 py-3.5 text-[15px] leading-7 ${msg.role === 'user' ? 'bg-zinc-800 text-white rounded-2xl rounded-tr-none' : 'text-zinc-300'}` }, msg.text),
-msg.meta && msg.meta.type === 'chart' && React.createElement("div", { className: "w-full min-w-[300px] md:min-w-[500px]" }, React.createElement(Chart, { symbol: msg.meta.symbol })),
-React.createElement("span", { className: "text-[10px] text-zinc-600 mt-2 ml-1" }, new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-),
-msg.role === 'user' && React.createElement("div", { className: "w-8 h-8 rounded-full bg-white flex-shrink-0 flex items-center justify-center mt-1" },
-React.createElement(Icon, { name: "user", className: "w-4 h-4 text-black" })
-)
-)
-),
-isTyping && React.createElement("div", { className: "flex gap-4" },
-React.createElement("div", { className: "w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex-shrink-0 flex items-center justify-center" },
-React.createElement(Icon, { name: "bot", className: "w-4 h-4 text-zinc-400" })
-),
-React.createElement("div", { className: "flex items-center gap-1 h-8" },
-React.createElement("div", { className: "w-1.5 h-1.5 bg-zinc-600 rounded-full typing-dot" }),
-React.createElement("div", { className: "w-1.5 h-1.5 bg-zinc-600 rounded-full typing-dot" }),
-React.createElement("div", { className: "w-1.5 h-1.5 bg-zinc-600 rounded-full typing-dot" })
-)
-)
-)
-),
-React.createElement("div", { className: "absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black to-transparent" },
-React.createElement("div", { className: "max-w-3xl mx-auto relative glass-panel rounded-2xl overflow-hidden shadow-2xl" },
-React.createElement("input", {
-type: "text", value: input, onChange: e => setInput(e.target.value), onKeyDown: e => e.key === 'Enter' && handleSend(),
-placeholder: "Message DONO...", className: "w-full bg-transparent text-white px-5 py-4 pr-14 focus:outline-none placeholder-zinc-600 text-[15px]", autoFocus: true
-}),
-React.createElement("button", { onClick: handleSend, className: `absolute right-2 top-2 p-2 rounded-xl transition-all duration-200 ${input.trim() ? 'bg-white text-black hover:bg-zinc-200' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}` },
-React.createElement(Icon, { name: "arrowUp", className: "w-5 h-5" })
-)
-),
-React.createElement("div", { className: "text-center mt-3" },
-React.createElement("p", { className: "text-[10px] text-zinc-600" }, "DONO can make mistakes. Verify important financial data.")
-)
-)
+return (
+<div className="flex-1 flex flex-col h-full bg-black relative">
+{/* Header */}
+<div className="absolute top-0 left-0 right-0 h-16 glass-panel z-20 flex items-center justify-between px-6">
+<div className="flex items-center gap-3">
+<div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center border border-zinc-800"><Cpu className="w-4 h-4 text-white" /></div>
+<span className="font-medium text-sm tracking-wide text-zinc-300">DONO</span>
+</div>
+<div className="flex items-center gap-4">
+<button onClick={() => setSettingsOpen(!settingsOpen)} className={`text-zinc-500 hover:text-white transition-colors ${!apiKey && 'text-amber-500 animate-pulse'}`}><Settings className="w-5 h-5" /></button>
+<button onClick={() => setIsAuth(false)} className="text-zinc-500 hover:text-white transition-colors"><LogOut className="w-5 h-5" /></button>
+</div>
+</div>
+{/* Settings Modal */}
+{settingsOpen && (
+<div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+<div className="bg-zinc-900 w-full max-w-md rounded-2xl border border-zinc-800 p-6 shadow-2xl">
+<div className="flex justify-between items-center mb-6">
+<h3 className="text-white font-bold">System Configuration</h3>
+<button onClick={() => setSettingsOpen(false)}><X className="text-zinc-500 hover:text-white" /></button>
+</div>
+<div className="space-y-4">
+<div>
+<label className="text-xs text-zinc-500 uppercase font-bold block mb-2">Google Gemini API Key</label>
+<input type="password" value={apiKey} onChange={e => saveApiKey(e.target.value)} placeholder="Paste AI Key here..." className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-white transition-colors" />
+<p className="text-[10px] text-zinc-600 mt-2">Required for intelligence. Free at aistudio.google.com</p>
+</div>
+<button onClick={() => setSettingsOpen(false)} className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-zinc-200">Save Configuration</button>
+</div>
+</div>
+</div>
+)}
+{/* Chat Area */}
+<div ref={scrollRef} className="flex-1 overflow-y-auto pt-24 pb-32 px-4 md:px-0">
+<div className="max-w-3xl mx-auto space-y-8">
+{messages.map((msg, idx) => (
+<div key={idx} className={`flex gap-4 msg-enter ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+{msg.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex-shrink-0 flex items-center justify-center mt-1"><Bot className="w-4 h-4 text-zinc-400" /></div>}
+<div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+<div className={`px-5 py-3.5 text-[15px] leading-7 prose ${msg.role === 'user' ? 'bg-zinc-800 text-white rounded-2xl rounded-tr-none' : 'text-zinc-300'}`} dangerouslySetInnerHTML={{ __html: msg.role === 'assistant' ? md.render(msg.text) : msg.text }}></div>
+{msg.meta && msg.meta.type === 'chart' && <div className="w-full min-w-[300px] md:min-w-[500px]"><Chart symbol={msg.meta.symbol} /></div>}
+</div>
+{msg.role === 'user' && <div className="w-8 h-8 rounded-full bg-white flex-shrink-0 flex items-center justify-center mt-1"><User className="w-4 h-4 text-black" /></div>}
+</div>
+))}
+{isTyping && <div className="flex gap-4"><div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex-shrink-0 flex items-center justify-center"><Bot className="w-4 h-4 text-zinc-400" /></div><div className="flex items-center gap-1 h-8"><div className="w-1.5 h-1.5 bg-zinc-600 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-zinc-600 rounded-full typing-dot"></div><div className="w-1.5 h-1.5 bg-zinc-600 rounded-full typing-dot"></div></div></div>}
+</div>
+</div>
+{/* Input */}
+<div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black to-transparent">
+<div className="max-w-3xl mx-auto relative glass-panel rounded-2xl overflow-hidden shadow-2xl">
+<input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder={apiKey ? "Message DONO..." : "Connect API Key first..."} className="w-full bg-transparent text-white px-5 py-4 pr-14 focus:outline-none placeholder-zinc-600 text-[15px]" autoFocus disabled={!apiKey && !isAuth} />
+<button onClick={handleSend} className={`absolute right-2 top-2 p-2 rounded-xl transition-all duration-200 ${input.trim() ? 'bg-white text-black hover:bg-zinc-200' : 'bg-zinc-800 text-zinc-500'}`}><ArrowUp className="w-5 h-5" /></button>
+</div>
+</div>
+</div>
 );
 }
 const root = createRoot(document.getElementById('root'));
