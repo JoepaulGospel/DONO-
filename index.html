@@ -18,11 +18,12 @@ body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 /* Markdown Styles */
-.prose p { margin-bottom: 0.8em; }
+.prose p { margin-bottom: 0.8em; line-height: 1.6; }
 .prose strong { color: #fff; font-weight: 600; }
 .prose ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 0.8em; color: #a1a1aa; }
-.prose h1, .prose h2 { font-weight: 600; margin-bottom: 0.5em; color: #fff; margin-top: 1em; }
-.prose code { background: #27272a; padding: 2px 4px; rounded: 4px; font-family: monospace; font-size: 0.9em; }
+.prose h1, .prose h2 { font-weight: 600; margin-bottom: 0.5em; color: #fff; margin-top: 1em; font-size: 1.1em; }
+.prose code { background: #27272a; padding: 2px 4px; rounded: 4px; font-family: monospace; font-size: 0.85em; color: #e4e4e7; }
+.prose blockquote { border-left: 2px solid #555; padding-left: 1em; color: #888; font-style: italic; }
 </style>
 <!-- 2. CORE LIBRARIES -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -42,12 +43,21 @@ const md = window.markdownit();
 // --- CONFIG ---
 const PROJECT_URL = 'https://wcgvbbgfagmotcxcztd.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjZ3ZiYmdmZ2FnbW90Y3hjenRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5Njc2OTgsImV4cCI6MjA4MTU0MzY5OH0.65hYmquYB11_vot1HmChGTukwp0gyNNFXbE2W8Ys84A';
-// --- BRAIN (GROQ / Llama 3.3) ---
+// --- BRAIN (UPDATED PERSONALITY) ---
 const brain = {
 think: async (history, apiKey) => {
 if (!apiKey) return "Error: Intelligence Core Offline. Please enter your Groq API Key in settings.";
-const systemPrompt = "You are DONO, a high-performance financial intelligence unit. You are concise, analytical, and professional. You use markdown for formatting. You focus on markets, data, and strategy.";
-// Format for OpenAI-compatible API (Groq uses this)
+// JARVIS PERSONALITY PROTOCOL
+const systemPrompt = `
+You are DONO, an advanced AI financial assistant.
+Your personality: Cool, intelligent, concise, and ultra-competent (like Jarvis from Iron Man).
+RULES:
+1. If the user says "Hey" or "Hi", reply casually: "Systems online. What are we analyzing?" or similar. DO NOT output a generic menu.
+2. If asked about markets, provide deep, data-driven analysis using your training data.
+3. Use Markdown formatting (bolding key numbers, lists for clarity).
+4. Never be verbose. Be sharp.
+5. You help the user 'Gospel' to win in the markets.
+`;
 const messages = [
 { role: "system", content: systemPrompt },
 ...history.map(msg => ({
@@ -64,17 +74,16 @@ headers: {
 },
 body: JSON.stringify({
 messages: messages,
-model: "llama-3.3-70b-versatile", // UPDATED: Latest stable model
-temperature: 0.7
+model: "llama-3.3-70b-versatile",
+temperature: 0.6, // Slightly lower for more precision, less hallucination
+max_tokens: 1024
 })
 });
 const data = await response.json();
-if (data.error) {
-return `System Error: ${data.error.message}`;
-}
+if (data.error) return `System Error: ${data.error.message}`;
 return data.choices[0].message.content;
 } catch (e) {
-return "Error: Connection to Neural Net failed. Check internet.";
+return "Error: Neural Link Unstable. Check internet connection.";
 }
 }
 };
